@@ -6,7 +6,7 @@
 // This function will be called by the watcher when the clipboard changes
 void onClipboardChange(const std::string& content) {
     std::cout << "\n--- Clipboard Changed! ---" << std::endl;
-    std::cout << content << std::endl;
+    std::cout << content;
     std::cout << "--------------------------" << std::endl;
 }
 
