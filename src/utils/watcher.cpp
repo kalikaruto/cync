@@ -26,15 +26,14 @@ void Watcher::stop() {
 }
 
 void Watcher::watchLoop() {
-    Clipboard clipboard;
-    std::string lastContent = clipboard.get();
+    std::string lastContent = Clipboard::get();
 
     while (m_running) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
         if (!m_running) break;
 
-        std::string newContent = clipboard.get();
+        std::string newContent = Clipboard::get();
         if (newContent != lastContent) {
             lastContent = newContent;
             if (m_callback) {

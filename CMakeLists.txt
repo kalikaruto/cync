@@ -6,37 +6,47 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
 
-# Find all our source files
-file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp")
-# Exclude main.cpp from the library sources, as it belongs in the executable
-list(FILTER SOURCES EXCLUDE REGEX ".*/main.cpp$")
+# --- Collect Sources ---
+# Common sources from the utils directory
+file(GLOB COMMON_SOURCES CONFIGURE_DEPENDS "src/utils/*.cpp")
 
+# --- Detect platform and select platform-specific sources ---
+if(UNIX AND NOT ANDROID)
+    file(GLOB PLATFORM_SOURCES CONFIGURE_DEPENDS "src/*_wl.cpp")
+    set(CLIPBOARD_BACKEND "WAYLAND")
+elseif(ANDROID)
+    file(GLOB PLATFORM_SOURCES CONFIGURE_DEPENDS "src/*_and.cpp")
+    set(CLIPBOARD_BACKEND "ANDROID")
+elseif(WIN32)
+    file(GLOB PLATFORM_SOURCES CONFIGURE_DEPENDS "src/*_win.cpp")
+    set(CLIPBOARD_BACKEND "WINDOWS")
+else()
+    message(FATAL_ERROR "Unsupported platform")
+endif()
 
 # --- Core Library ---
-# By creating a library, we can share code between our main program and our tests.
-add_library(cync_lib ${SOURCES})
+# Combine the common sources and the platform-specific sources
+add_library(cync_lib ${COMMON_SOURCES} ${PLATFORM_SOURCES})
+target_compile_definitions(cync_lib PUBLIC -DUSE_${CLIPBOARD_BACKEND})
 
-# The PUBLIC keyword here means that any target that links to cync_lib
-# will also get these compile definitions.
-target_compile_definitions(cync_lib PUBLIC -DUSE_WAYLAND)
-
+# --- Link against required system packages ---
+# Only Windows needs to link a specific library for its clipboard API.
+# Wayland and Android backends work by calling external commands, so they don't need to link anything.
+if(CLIPBOARD_BACKEND STREQUAL "WINDOWS")
+    target_link_libraries(cync_lib PRIVATE user32) # Windows clipboard API
+endif()
 
 # --- Main Executable ---
-# This just contains the main function and links to our library for the real logic.
 add_executable(cync src/main.cpp)
 target_link_libraries(cync PRIVATE cync_lib)
-
 
 # --- Custom Run Target ---
 add_custom_target(run
     COMMAND cync
     DEPENDS cync
-    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-
 # --- Testing ---
-# This section enables testing and includes the 'tests' directory,
-# where we will configure and define our test cases.
 enable_testing()
 add_subdirectory(tests)
